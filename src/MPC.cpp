@@ -7,21 +7,21 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double dt = 0.1;
+double dt = 0.2;
 
 // Set refference velocity
-double ref_v = 30;
+double ref_v = 70;
 
 
 // Parameters for fine tunning 
 
-double w_cte = 2;
-double w_epsi = 20;
+double w_cte = 2000;
+double w_epsi = 2000;
 double w_v = 1;
-double w_delta = 5000;
-double w_a = 20;
-double w_delta_gap = 1;
-double w_a_gap = 1;
+double w_delta = 50;
+double w_a = 5;
+double w_delta_gap = 500;
+double w_a_gap = 10;
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -163,16 +163,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // SHOULD BE 0 besides initial state.
   Dvector vars(n_vars);
   for (unsigned int i = 0; i < n_vars; i++) {
-    vars[i] = 0.0;
+    vars[i] = 0;
   }
-
-  // Set the initial variable values
-  vars[x_start] = x;
-  vars[y_start] = y;
-  vars[psi_start] = psi;
-  vars[v_start] = v;
-  vars[cte_start] = cte;
-  vars[epsi_start] = epsi;
 
   // Lower and upper limits for x
   Dvector vars_lowerbound(n_vars);
@@ -190,8 +182,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // degrees (values in radians).
   // NOTE: Feel free to change this to something else.
   for (unsigned int i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -0.436332;
-    vars_upperbound[i] = 0.436332;
+    vars_lowerbound[i] = -0.436332 * Lf;
+    vars_upperbound[i] = 0.436332 * Lf;
   }
 
   // Acceleration/decceleration upper and lower limits.

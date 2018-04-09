@@ -90,7 +90,6 @@ int main() {
           double px = j[1]["x"];
           double py = j[1]["y"];
           double psi = j[1]["psi"];
-          double psi_unity = j[1]["psi_unity"];
           double v = j[1]["speed"];
           double steering_angle = j[1]["steering_angle"];
           double throttle = j[1]["throttle"];
@@ -101,16 +100,26 @@ int main() {
           *
           */
           int pts_size = ptsx.size();
-
+		  const double latency = 0.1;
+		  
+		  double f_px = px + v * cos(psi) * latency;
+		  double f_py = py + v * sin(psi) * latency;
+		  double f_psi = psi + v * steering_angle / Lf * latency;
+		  double f_v = v + throttle * latency;
+		  
           // Transform waypoints cordinated from map to vehicle
           // Adapted from https://gamedev.stackexchange.com/a/79779
           Eigen::VectorXd waypoints_x(pts_size);
           Eigen::VectorXd waypoints_y(pts_size);
           for (int i = 0; i < pts_size; i++) {
-			  double relx = ptsx[i] - px;
-			  double rely = ptsy[i] - py;
-			  waypoints_x(i) = cos(-psi) * relx - sin(-psi) * rely;
-			  waypoints_y(i) = cos(-psi) * rely + sin(-psi) * relx;
+			  double relx = ptsx[i] - f_px;
+			  double rely = ptsy[i] - f_py;
+			  double ptsx_car = cos(0-f_psi) * relx - sin(0-f_psi) * rely;
+			  double ptsy_car = cos(0-f_psi) * rely + sin(0-f_psi) * relx;
+			  
+			  // Convert points to account for latency
+			  waypoints_x(i) = ptsx_car;
+			  waypoints_y(i) = ptsy_car;
 		  }
 
 		  // A 3-rd order polynominal
@@ -125,21 +134,12 @@ int main() {
 
 		  // Initail state vector
 		  Eigen::VectorXd state(6);
-		  state << 0, 0, 0, v, cte, epsi;
-
-		  // Account for latency
-		  const double latency = 0.1;
-		  state(0) = v * latency;
-		  state(1) = 0;
-		  state(2) = v  / Lf * steering_angle * latency;
-		  state(3) = v + throttle * latency;
-		  state(4) = cte + v * sin(epsi) * latency;
-		  state(5) = epsi + state(2);
+		  state << 0, 0, 0, f_v, cte, epsi;
 
           // Solve
           auto vars = mpc.Solve(state, coeffs);
 
-          double steer_value = vars[0] / deg2rad(25) * Lf;
+          double steer_value = vars[0] / (deg2rad(25) * Lf);
           double throttle_value = vars[1];
 
           json msgJson;
@@ -180,7 +180,7 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
